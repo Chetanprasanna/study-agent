@@ -52,9 +52,9 @@ class MissingApiKeyError(RuntimeError):
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-# The Gemini model to use. "gemini-2.5-flash" is fast, cheap, and capable.
+# Use the requested Gemini 3.5 Flash-Lite model for Q&A and generators.
 # Change this one constant if you ever want to use a different model.
-_DEFAULT_MODEL: str = "gemini-2.5-flash"
+_DEFAULT_MODEL: str = "gemini-3.5-flash-lite"
 
 # Retry settings — how many times to retry on transient errors, and how long
 # to wait between retries (in seconds). We double the wait each time (backoff).

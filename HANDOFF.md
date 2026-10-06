@@ -185,3 +185,139 @@ python scripts/try_qa.py samples/my_notes.pdf
 ## Part 4 — Streamlit UI
 
 > *Part 4: append your section here when done.*
+
+## Part 3 DONE — Generators, Tools & Gemini Agent Loop
+
+**Date:** 2026-10-06
+**Files:** `agent/generators.py`, `agent/tools.py`, `agent/agent.py`,
+`tests/test_part3.py`, `scripts/try_agent.py`, `requirements.txt`, `HANDOFF.md`.
+
+### What was built
+
+- Summary, MCQ quiz, important topics and flashcards reuse Part 2's `ask_llm`.
+  Broad tasks sample up to 12 evenly spaced chunks, including the beginning
+  and end. Each prompt excerpt is capped at 1,200 characters. This gives bounded
+  document coverage, but can omit details in very large PDFs.
+- JSON generators remove enclosing code fences, require an array, validate every
+  field and exact quiz/card counts, and retry once after bad syntax or schema.
+  API failures and exhausted JSON retries return the error shapes below.
+- `search_notes` wraps `NotesIndex.search` unchanged. The calculator walks an
+  AST, allows numbers, unary signs, + - * / ** %, and parentheses, and rejects
+  names, function calls, attributes, containers, booleans and unsupported
+  operators. Expression length, tree size, powers and result size are bounded.
+- Optional web search uses `ddgs` only when installed, returns at most three
+  results, and catches network errors. The optional requirement is commented
+  out. Install with `pip install ddgs`; DDGS itself needs no search API key.
+  The missing-package message retains the exact wording required by CONTRACT.md.
+- `StudyAgent.run` declares all seven tools and manually runs at most five
+  Gemini turns using the same model constant as Part 2. Each turn sends the
+  conversation and declarations, executes requested tools, appends function
+  responses, and continues until a text response. Parallel tool calls receive
+  one combined response turn; call IDs and original model parts are preserved.
+  Tool argument errors are returned to Gemini so it can correct them.
+- The keyword router runs only if function calling fails, including missing
+  credentials, empty model responses, SDK/API errors or iteration exhaustion.
+  Its Q&A path reuses `answer_question`; normal agent Q&A uses the model's
+  final text with chunks gathered by `search_notes`.
+- Every tool execution and final response is stored and printed. The trace
+  shows observable actions, inputs and results, not private model reasoning.
+- The CLI loads a PDF once and accepts messages until quit/exit or Ctrl+C.
+  Each message starts a fresh conversation over the same index.
+
+### Exact output shapes for Part 4
+
+Every `StudyAgent.run(message)` returns:
+
+```python
+{
+    "task": "qa" | "summary" | "quiz" | "topics" | "flashcards" | "calculate" | "web",
+    "output": str | list[dict] | list[str],
+    "sources": list[dict],
+    "tool_used": str,
+    "steps": [
+        {"thought_or_tool": str, "input": str | dict, "observation": str | list | dict}
+    ],
+}
+```
+
+Successful generator outputs:
+
+```python
+summarize(index)  # str: concise summary with page references
+make_quiz(index, n=5)  # exactly n objects:
+[
+    {
+        "question": str,
+        "options": [str, str, str, str],
+        "answer_index": int,  # 0..3; bool is rejected
+        "explanation": str,
+    }
+]
+important_topics(index)  # list[str]: non-empty topic names
+make_flashcards(index, n=8)  # exactly n objects:
+[{"front": str, "back": str}]
+```
+
+Counts must be integers from 1 to 50. Quiz/card generation errors return
+`[{"error": "Error: ..."}]`; topics errors return `["Error: ..."]`;
+summary errors return `"Error: ..."`. Check these sentinels before rendering
+quiz options or card faces. These are failure payloads, not valid study items.
+They keep the public list return types without fabricating study content.
+
+- `qa`: `output` is a string; `tool_used` is `"search_notes"`.
+- `summary`: string; `tool_used` is `"summarize"`.
+- `quiz`: list of the MCQ dicts above (or error sentinel);
+  `tool_used` is `"make_quiz"`.
+- `topics`: list of strings (or error sentinel);
+  `tool_used` is `"important_topics"`.
+- `flashcards`: list of card dicts above (or error sentinel);
+  `tool_used` is `"make_flashcards"`.
+- `calculate`: string; `tool_used` is `"calculator"`.
+- `web`: string containing titles, snippets and URLs, or a disabled/error
+  message; `tool_used` is `"web_search"`.
+
+Structured quiz/card/topic outputs are preserved even if Gemini's closing
+response is prose. For a successful multi-tool request, the last non-search
+tool determines the task; all earlier outputs remain available in `steps`.
+For string tasks the agent uses Gemini's closing text; fallback uses the raw
+tool output. The router does not attempt to reproduce multi-tool planning.
+
+Retrieved source dicts are `{"id": int, "page": int, "text": str, "score": float}`.
+Sampled generator sources are `{"id": int, "page": int, "text": str}` without
+a relevance score. The UI should use `source.get("score")` if showing scores.
+Sources are empty when not applicable; a multi-tool run can retain earlier
+retrieved sources. Step inputs are argument dicts for tools and message strings
+for fallback/final events. Full observations are stored; terminal previews are
+capped at 600 characters.
+
+### How to test and demo
+
+From the repository root, with the existing virtual environment:
+
+```bash
+source venv/bin/activate
+python -m pytest tests/test_part3.py -v
+python -m pytest tests/ -q
+python scripts/try_agent.py samples/my_notes.pdf
+# Optional web support:
+pip install ddgs
+```
+
+Set `GEMINI_API_KEY` in `.env` to demonstrate real Gemini tool selection.
+Try "Find ATP in my notes, then calculate 12 * 8", "Make 5 quiz questions",
+"Summarize my notes", or "Create 8 flashcards".
+
+Validation: 61 Part 3 tests passed; the complete suite passed with 130 tests
+and one existing skipped test. Tests mock `ask_llm` and Gemini SDK responses,
+including multi-turn and parallel calls, argument recovery, malformed JSON,
+missing credentials and the five-turn limit. Imports and the CLI work without
+credentials. Live Gemini and web requests were not exercised.
+
+### Changes to earlier parts
+
+None. Parts 1 and 2 files and CONTRACT.md are unchanged.
+
+## Part 3 configuration update — 2026-10-06
+
+- At the user's request, changed Part 2's shared model constant in `agent/llm.py` to `gemini-3.5-flash-lite`. Q&A, generators and the function-calling agent now all use this model. Public signatures are unchanged.
+- Credentials are stored only in the local, untracked `.env`, with owner-only file permissions. `.gitignore` also excludes `.env.*` variants while keeping the placeholder-only `.env.example` trackable.
