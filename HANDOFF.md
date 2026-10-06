@@ -3,6 +3,9 @@
 Each part appends a new section to this file when complete.  
 Read **all previous sections** before starting your part.
 
+**Current status: Parts 1, 2 and 3 are complete. Part 4 (Streamlit UI) is next.**
+**Current shared model:** `gemini-3.5-flash-lite`.
+
 ---
 
 ## Part 1 — Foundation & PDF Pipeline ✅
@@ -141,7 +144,7 @@ python scripts/try_qa.py samples/my_notes.pdf
 
 ---
 
-### What Part 3 Must Know
+### Part 2 Handoff to Part 3 (Historical — Part 3 Is Now Complete)
 
 1. **Read `CONTRACT.md`** — your function signatures are already defined there.
 2. You need to implement: `agent/tools.py`, `agent/generators.py`, `agent/agent.py`.
@@ -163,7 +166,7 @@ python scripts/try_qa.py samples/my_notes.pdf
 9. Write `tests/test_part3.py` and append your section to `HANDOFF.md`.
 10. All modules must remain importable without `GEMINI_API_KEY` set.
 
-### Known Limitations / Notes for Part 3
+### Part 2 Limitations Recorded Before Part 3
 
 - TF-IDF retrieval is keyword-based, not semantic. If the user phrases their question
   very differently from the notes, retrieval may miss relevant chunks. Part 3's agent
@@ -176,17 +179,7 @@ python scripts/try_qa.py samples/my_notes.pdf
 
 ---
 
-## Part 3 — Generators, Tools & Agent Orchestrator
-
-> *Part 3: append your section here when done.*
-
----
-
-## Part 4 — Streamlit UI
-
-> *Part 4: append your section here when done.*
-
-## Part 3 DONE — Generators, Tools & Gemini Agent Loop
+## Part 3 DONE — Generators, Tools & Gemini Agent Loop ✅
 
 **Date:** 2026-10-06
 **Files:** `agent/generators.py`, `agent/tools.py`, `agent/agent.py`,
@@ -307,17 +300,29 @@ Set `GEMINI_API_KEY` in `.env` to demonstrate real Gemini tool selection.
 Try "Find ATP in my notes, then calculate 12 * 8", "Make 5 quiz questions",
 "Summarize my notes", or "Create 8 flashcards".
 
-Validation: 61 Part 3 tests passed; the complete suite passed with 130 tests
-and one existing skipped test. Tests mock `ask_llm` and Gemini SDK responses,
+Validation: 61 Part 3 tests passed. The latest local full-suite run passed
+131 tests; the optional sample-PDF test skips when `samples/my_notes.pdf` is absent. Tests mock `ask_llm` and Gemini SDK responses,
 including multi-turn and parallel calls, argument recovery, malformed JSON,
 missing credentials and the five-turn limit. Imports and the CLI work without
 credentials. Live Gemini and web requests were not exercised.
 
 ### Changes to earlier parts
 
-None. Parts 1 and 2 files and CONTRACT.md are unchanged.
+The Part 3 implementation kept Parts 1 and 2 files and CONTRACT.md unchanged.
+The subsequent user-requested model update changed `agent/llm.py` as recorded below.
 
 ## Part 3 configuration update — 2026-10-06
 
 - At the user's request, changed Part 2's shared model constant in `agent/llm.py` to `gemini-3.5-flash-lite`. Q&A, generators and the function-calling agent now all use this model. Public signatures are unchanged.
 - Credentials are stored only in the local, untracked `.env`, with owner-only file permissions. `.gitignore` also excludes `.env.*` variants while keeping the placeholder-only `.env.example` trackable.
+
+
+## Part 4 — Streamlit UI ⏳ Next
+
+Part 3 is complete. `app.py` remains the Part 4 placeholder.
+
+- Read CONTRACT.md and the Part 3 output shapes above before implementing the UI.
+- Reuse the completed PDF pipeline, `NotesIndex` and `StudyAgent.run`.
+- Render text, quiz/card/topic lists, generation errors, source pages and expandable steps.
+- Keep `.env` credentials local and ignored by Git.
+- Add `tests/test_part4.py` and append a completed Part 4 handoff when finished.
