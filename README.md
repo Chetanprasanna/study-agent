@@ -19,14 +19,15 @@ study-agent/
 │   ├── __init__.py
 │   ├── pdf_loader.py      # PDF → pages  (Part 1 ✅)
 │   ├── chunker.py         # Pages → chunks (Part 1 ✅)
-│   ├── retriever.py       # Semantic search index (Part 2)
-│   ├── llm.py             # Gemini wrapper (Part 2)
-│   ├── qa.py              # Q&A pipeline (Part 2)
+│   ├── retriever.py       # TF-IDF search index (Part 2 ✅)
+│   ├── llm.py             # Gemini wrapper (Part 2 ✅)
+│   ├── qa.py              # Q&A pipeline (Part 2 ✅)
 │   ├── tools.py           # Calculator, web search (Part 3)
 │   ├── generators.py      # Summary, quiz, flashcards (Part 3)
 │   └── agent.py           # Orchestrator agent (Part 3)
 ├── tests/
-│   └── test_part1.py      # pytest tests for Part 1 ✅
+│   ├── test_part1.py      # pytest tests for Part 1 ✅
+│   └── test_part2.py      # pytest tests for Part 2 ✅
 └── samples/               # Place a sample PDF here for testing
 ```
 
@@ -38,9 +39,9 @@ study-agent/
 |---|---|
 | PDF loading & parsing | ✅ Part 1 |
 | Text chunking | ✅ Part 1 |
-| Semantic search / retrieval | Part 2 |
-| Gemini LLM integration | Part 2 |
-| Q&A over notes | Part 2 |
+| Semantic search / retrieval | ✅ Part 2 |
+| Gemini LLM integration | ✅ Part 2 |
+| Q&A over notes | ✅ Part 2 |
 | Summarisation | Part 3 |
 | Quiz generation | Part 3 |
 | Important topics extraction | Part 3 |
@@ -104,20 +105,25 @@ pytest tests/ -v
 - `agent/chunker.py` — splits pages into overlapping text chunks, preserving page numbers
 - `tests/test_part1.py` — full pytest suite for both modules
 - `CONTRACT.md` — binding API contract all future parts must follow exactly
-- `HANDOFF.md` — progress log (Part 2 must append their own section)
+- `HANDOFF.md` — progress log
 
-### 🔜 Hand Off to Part 2
+### ✅ Part 2 Is Done — Here's What Was Built
 
-**Tell Part 2's Claude:**
-1. Read `CONTRACT.md` first — it defines the exact function signatures they must implement.
-2. Read `HANDOFF.md` — it describes what Part 1 built and what Part 2 needs to know.
-3. They must implement: `agent/retriever.py`, `agent/llm.py`, `agent/qa.py`.
-4. They must add their own section to `HANDOFF.md` when done.
-5. They must write `tests/test_part2.py`.
+- `agent/retriever.py` — `NotesIndex` class: TF-IDF index (sklearn) + cosine-similarity search
+- `agent/llm.py` — `ask_llm()`: Gemini 2.5 Flash wrapper, retry logic, `MissingApiKeyError`
+- `agent/qa.py` — `answer_question()`: full RAG pipeline (retrieve → prompt → generate)
+- `tests/test_part2.py` — 39 tests, all run without an API key (LLM mocked)
+- `scripts/try_qa.py` — CLI end-to-end tester: `python scripts/try_qa.py notes.pdf "question"`
 
 ### 🔜 Hand Off to Part 3
 
-Part 3 implements `agent/tools.py`, `agent/generators.py`, `agent/agent.py`.
+**Tell Part 3's Claude:**
+1. Read `CONTRACT.md` and **both** Part 1 and Part 2 sections of `HANDOFF.md`.
+2. Implement: `agent/tools.py`, `agent/generators.py`, `agent/agent.py`.
+3. Use `ask_llm` from `agent.llm` for all LLM calls — retries are already handled.
+4. Catch `MissingApiKeyError` (from `agent.llm`) in `agent.py` for user-friendly errors.
+5. `calculator()` must use `ast`-based safe eval — no `eval()`/`exec()`.
+6. Write `tests/test_part3.py` and append a section to `HANDOFF.md`.
 
 ### 🔜 Hand Off to Part 4
 
