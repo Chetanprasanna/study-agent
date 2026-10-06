@@ -2,7 +2,7 @@
 scripts/try_qa.py  —  Part 2 CLI tool
 
 End-to-end test script: load a PDF → chunk it → build index → answer a question.
-Use this to verify the full pipeline works before the Streamlit UI (Part 4) exists.
+Use this to verify the Q&A pipeline alongside the completed Part 4 Streamlit UI.
 
 Usage
 -----

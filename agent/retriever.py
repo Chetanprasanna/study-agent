@@ -68,7 +68,7 @@ class NotesIndex:
 
         # Store the original chunks so search() can return them with metadata.
         # We keep a copy so external code can't accidentally modify our data.
-        self._chunks: list[dict] = chunks
+        self._chunks: list[dict] = [dict(chunk) for chunk in chunks]
 
         # If there are no chunks (e.g. empty PDF), we can't build an index.
         # We flag this so search() can return [] without crashing.
@@ -117,7 +117,16 @@ class NotesIndex:
         #   fit()      → learn the vocabulary and IDF weights from `texts`
         #   transform()→ convert each text into a TF-IDF vector
         # Result is a sparse matrix: shape (num_chunks, num_vocabulary_terms)
-        self._tfidf_matrix = self._vectorizer.fit_transform(texts)
+        try:
+            self._tfidf_matrix = self._vectorizer.fit_transform(texts)
+        except ValueError as exc:
+            # Repeated notes can make EVERY term too common for max_df=0.95.
+            # Keep those terms instead of rejecting an otherwise readable PDF.
+            # Other errors (such as punctuation-only text) still reach the UI.
+            if "After pruning, no terms remain" not in str(exc):
+                raise
+            self._vectorizer.set_params(max_df=1.0)
+            self._tfidf_matrix = self._vectorizer.fit_transform(texts)
 
     def search(self, query: str, top_k: int = 4) -> list[dict]:
         """
@@ -156,7 +165,7 @@ class NotesIndex:
             return []
 
         # ── Guard: handle empty query ─────────────────────────────────────────
-        if not query or not query.strip():
+        if not query or not query.strip() or top_k <= 0:
             return []
 
         # ── Step 1: Vectorise the query ───────────────────────────────────────

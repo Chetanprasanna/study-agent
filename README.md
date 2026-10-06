@@ -1,187 +1,211 @@
 # Study Agent 🎓
 
-An AI-powered study assistant where students upload PDF notes and interact with them via natural language. Ask questions, get summaries, generate quizzes, discover important topics, and create flashcards — all powered by Google Gemini.
+Study Agent is a college project that turns PDF notes into a study workspace.
+Upload a PDF, ask questions with page references, generate a summary, take a
+multiple-choice quiz, tick off important topics, or reveal flashcard answers.
+The interface shows which tool the agent chose and the steps it actually ran.
 
-**Progress: Parts 1, 2 and 3 are complete. Part 4 (Streamlit UI) is next.**
+**Status: Parts 1, 2, 3 and 4 are complete.** Part 4 delivered the Streamlit UI,
+interactive study controls, agent traces, tests and presentation documentation.
 
----
+## Architecture
 
-## Project Structure
+```text
+                         Streamlit (app.py)
+                       /                  \
+             Upload + Process         Chat / quick actions
+                    |                         |
+               load_pdf()                     |
+                    |                         |
+              chunk_pages()                   |
+                    |                         |
+               NotesIndex ----------------> StudyAgent.run()
+           TF-IDF, in session_state           |
+                                      Gemini tool selection
+                                      (maximum five turns)
+                                               |
+                +------------------------------+-------------------+
+                |                  |                 |              |
+          search_notes        calculator        web_search     generators
+          NotesIndex          safe AST          optional DDGS  summary/quiz/
+                |                                              topics/cards
+                +------------------------------+-------------------+
+                                               |
+                                  task + output + sources + steps
+                                               |
+                                      Streamlit renderers
+                               chat / quiz / cards / download
 
+If function calling fails: keyword router -> existing tools / answer_question
+Text generation: ask_llm() -> Gemini (google-genai SDK)
 ```
-study-agent/
-├── app.py                 # Streamlit UI (Part 4)
-├── requirements.txt       # All dependencies
-├── .env.example           # Copy to .env and fill your key
-├── .gitignore
-├── README.md
-├── CONTRACT.md            # Binding API contracts for all parts
-├── HANDOFF.md             # Progress log across all 4 parts
-├── agent/
-│   ├── __init__.py
-│   ├── pdf_loader.py      # PDF → pages  (Part 1 ✅)
-│   ├── chunker.py         # Pages → chunks (Part 1 ✅)
-│   ├── retriever.py       # TF-IDF search index (Part 2 ✅)
-│   ├── llm.py             # Gemini wrapper (Part 2 ✅)
-│   ├── qa.py              # Q&A pipeline (Part 2 ✅)
-│   ├── tools.py           # Notes search, calculator, web search (Part 3 ✅)
-│   ├── generators.py      # Summary, quiz, topics, flashcards (Part 3 ✅)
-│   └── agent.py           # Gemini tool-calling agent (Part 3 ✅)
-├── tests/
-│   ├── test_part1.py      # pytest tests for Part 1 ✅
-│   ├── test_part2.py      # pytest tests for Part 2 ✅
-│   └── test_part3.py      # pytest tests for Part 3 ✅
-├── scripts/
-│   ├── try_qa.py          # Q&A CLI (Part 2 ✅)
-│   └── try_agent.py       # Interactive agent CLI (Part 3 ✅)
-└── samples/               # Place a sample PDF here for testing
-```
 
----
+The UI calls `StudyAgent.run()` for every study request. It only handles PDF
+processing, session state, presentation and quiz scoring; it does not route
+requests itself. See [CONTRACT.md](CONTRACT.md) for public interfaces and
+[HANDOFF.md](HANDOFF.md) for exact output shapes and changes across all four parts.
 
-## Features
+## Setup and run
 
-| Feature | Status |
-|---|---|
-| PDF loading & parsing | ✅ Part 1 |
-| Text chunking | ✅ Part 1 |
-| TF-IDF search / retrieval | ✅ Part 2 |
-| Gemini LLM integration | ✅ Part 2 |
-| Q&A over notes | ✅ Part 2 |
-| Summarisation | ✅ Part 3 |
-| Quiz generation | ✅ Part 3 |
-| Important topics extraction | ✅ Part 3 |
-| Flashcard generation | ✅ Part 3 |
-| Notes search, safe calculator & optional web search | ✅ Part 3 |
-| Gemini function-calling loop & visible tool steps | ✅ Part 3 |
-| Streamlit UI | ⏳ Part 4 — next |
-
----
-
-## Quick Start
-
-### 1. Clone the repo
+Use Python 3.10 or newer. From a terminal:
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Chetanprasanna/study-agent.git
 cd study-agent
-```
-
-### 2. Create a virtual environment
-
-```bash
 python -m venv venv
-source venv/bin/activate       # Mac/Linux
-# venv\Scripts\activate        # Windows
+source venv/bin/activate
+# Windows PowerShell: .\venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 ```
 
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Set up the API key
+Create your local configuration, if you do not already have one:
 
 ```bash
 cp .env.example .env
-# Open .env and replace "your_key_here" with your actual Gemini API key
-# Get one at: https://aistudio.google.com/app/apikey
+# Windows PowerShell: Copy-Item .env.example .env
 ```
 
-### 5. Run the completed Part 3 CLI
+Edit `.env`, replacing the placeholder with your Gemini key:
 
-```bash
-python scripts/try_agent.py samples/my_notes.pdf
+```dotenv
+GEMINI_API_KEY=your_key_here
 ```
 
-Use your own PDF path. Try `summarize notes`, `make 5 quiz questions`,
-`create 8 flashcards`, or `calculate (12 + 8) / 4`. Tool steps print in the terminal.
-Gemini 3.5 Flash-Lite handles tool selection when a valid API key is configured.
-
-Web search is optional: install it with `pip install ddgs`.
-
-### 6. Run the app after Part 4 is implemented
+Get a key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+The repository's configured model is `gemini-3.5-flash-lite`, defined once in
+`agent/llm.py`. Your account must have access to the configured model.
+Keep `.env` local; it is ignored by Git.
 
 ```bash
 streamlit run app.py
 ```
 
-### 7. Run tests
+Open the local URL printed by Streamlit, normally `http://localhost:8501`.
+If `GEMINI_API_KEY` is absent, enter a key in the sidebar's password field.
+That fallback stays in the browser session's server-side memory and is passed
+through a request-scoped context; it is never written to `.env` or `os.environ`.
+An environment key takes priority.
+
+1. Upload a PDF containing selectable text, then click **Process notes**.
+2. Wait for the ready message showing text pages and chunks.
+3. Type a question or click **Summary**, **Quiz**, **Important topics**, or **Flashcards**.
+4. Expand **Sources (pages)** and **Agent steps** to inspect the reply.
+5. For a quiz, select all answers and click **Check answers**. The score and
+   explanations persist across reruns; submit again after changing choices.
+6. Reveal flashcards with their expanders, tick topics as you revise, and use
+   **Download summary (.txt)** to save a summary.
+
+Processing happens locally; answering and generation send selected note excerpts
+and your request to Gemini. Chat, index and study controls remain in session
+memory. Changing/removing the upload clears document-specific history and quiz
+answers. The **Agent tools** panel tracks tools attempted throughout the session,
+including failed attempts. Refreshing/disconnecting can end the session.
+
+Optional web search:
 
 ```bash
-pytest tests/ -v
+python -m pip install ddgs
 ```
 
----
+DDGS does not need a search API key in this implementation. When not installed,
+the backend's disabled message mentions a search API key for contract compatibility;
+installing `ddgs` is the actual enablement step.
 
-## Completed Parts and Next Handoff
+## Example prompts
 
-Parts 1–3 are complete and ready for the Part 4 UI implementation.
+Use questions matching your own PDF's subject. For biology notes, try:
 
-### ✅ Part 1 Is Done — Here's What Was Built
+- “What is ATP? Cite the relevant pages.”
+- “Summarize my notes.”
+- “Make 5 quiz questions from my notes.”
+- “List the important topics in my notes.”
+- “Create 8 flashcards from my notes.”
+- “Calculate (12 + 8) / 4.”
+- “Find ATP in my notes, then calculate 12 * 8.”
+- “Search the web for an explanation of cellular respiration.”
 
-- `agent/pdf_loader.py` — extracts text from PDF pages, skips blank pages
-- `agent/chunker.py` — splits pages into overlapping text chunks, preserving page numbers
-- `tests/test_part1.py` — full pytest suite for both modules
-- `CONTRACT.md` — binding API contract all future parts must follow exactly
-- `HANDOFF.md` — progress log
+## How the agent decides
 
-### ✅ Part 2 Is Done — Here's What Was Built
+Gemini receives the student's message and descriptions of seven available tools:
+`search_notes`, `calculator`, `web_search`, `summarize`, `make_quiz`,
+`important_topics`, and `make_flashcards`. It can call multiple tools, inspect
+results, and return a final answer. The loop stops after at most five model turns.
+The sidebar calls `make_quiz` **Generate Quiz**; the reply badge shows its actual
+backend name.
 
-- `agent/retriever.py` — `NotesIndex` class: TF-IDF index (sklearn) + cosine-similarity search
-- `agent/llm.py` — `ask_llm()`: Gemini wrapper (now using Gemini 3.5 Flash-Lite), retry logic, `MissingApiKeyError`
-- `agent/qa.py` — `answer_question()`: full RAG pipeline (retrieve → prompt → generate)
-- `tests/test_part2.py` — retrieval and Q&A tests, all run without an API key (LLM mocked)
-- `scripts/try_qa.py` — CLI end-to-end tester: `python scripts/try_qa.py notes.pdf "question"`
+If tool calling fails, the agent records `fallback_router` and uses keyword
+matching to select one existing tool. Fallback Q&A uses `answer_question()`.
+The UI does not claim fallback routing was a successful Gemini decision:
+its trace shows the fallback event and recorded error.
 
-### ✅ Part 3 Is Done — Here's What Was Built
+Quizzes, topics and cards keep their structured tool outputs. For successful
+multi-tool requests, the last non-search tool determines the displayed task;
+earlier results remain visible in **Agent steps**. Steps are observable tool
+inputs and outputs, not hidden model reasoning. The panel marks actual recorded
+tool attempts rather than assuming the reply's `tool_used` field proves execution.
 
-- `agent/generators.py` — document-wide summary, quiz, important topics and flashcards; validated JSON with one retry
-- `agent/tools.py` — notes search, safe AST calculator and optional DDGS web search
-- `agent/agent.py` — Gemini function-calling loop (up to five turns), printed tool steps and fallback routing
-- `tests/test_part3.py` — 61 offline tests with text generation and Gemini responses mocked
-- `scripts/try_agent.py` — interactive PDF chat in the terminal
-- `HANDOFF.md` — exact output shapes, error payloads and source formats for the UI
+## Tests and command-line tools
 
-### 🔜 Hand Off to Part 4
+```bash
+python -m pytest tests/ -q
+python -m pytest tests/test_part4.py -v
+python scripts/try_agent.py path/to/notes.pdf
+python scripts/try_qa.py path/to/notes.pdf "What is the main idea?"
+```
 
-Part 4 implements `app.py`, the Streamlit UI that ties the completed backend together.
+Part 4 tests generate small real PDFs in memory, build a real TF-IDF index, and
+exercise both fallback Q&A and Gemini's tool loop with model responses mocked.
+Streamlit AppTest covers missing inputs, errors, chat, quiz grading, output types,
+API-key fallback, session caching, PDF replacement and removal. No live Gemini
+or web requests are needed. The optional Part 1 real-PDF test skips when no PDF
+is present in `samples/`.
 
-1. Read `CONTRACT.md` and the completed Part 3 section in `HANDOFF.md`.
-2. Reuse PDF loading, chunking and `NotesIndex`; create `StudyAgent(index)` after upload.
-3. Call `StudyAgent.run(message)` and render its `task`, `output`, `sources`, `tool_used` and `steps` fields.
-4. Render quizzes, flashcards and topics using their documented list formats, checking error sentinels first.
-5. Show source pages and expandable tool steps; relevance scores are optional on sampled sources.
-6. Keep credentials in the ignored local `.env`; do not put them in UI source or GitHub.
-7. Add Part 4 tests and update this README and `HANDOFF.md` when the UI is complete.
+## Project files
 
----
+```text
+app.py                 Streamlit UI and importable presentation helpers
+agent/pdf_loader.py    PDF -> pages
+agent/chunker.py       Pages -> overlapping chunks
+agent/retriever.py     TF-IDF search
+agent/llm.py           Gemini text calls and scoped API-key helpers
+agent/qa.py            Retrieval-augmented Q&A
+agent/tools.py         Search, safe calculator, optional web search
+agent/generators.py    Summary, validated quizzes, topics, flashcards
+agent/agent.py         Function-calling loop and fallback router
+tests/test_part1.py    PDF/chunking tests
+tests/test_part2.py    Retrieval/LLM/Q&A tests
+tests/test_part3.py    Tools/generators/agent tests
+tests/test_part4.py    UI, pipeline and regression tests
+scripts/               Interactive CLI entry points
+samples/               Optional local sample PDFs
+DEMO.md                Three-minute college presentation script
+CONTRACT.md            Stable backend interfaces
+HANDOFF.md             Completion log and implementation details
+```
 
-## Environment Variables
+## Limitations
 
-| Variable | Description |
-|---|---|
-| `GEMINI_API_KEY` | Your Google Gemini API key (required for Parts 2–4) |
+- Scanned/image-only PDFs need OCR before uploading; OCR is not built in.
+- One PDF is active at a time. Blank pages are skipped; citations retain original
+  one-based PDF page positions, which may differ from printed page labels.
+- TF-IDF matches words, not meaning, so synonyms and unusual phrasing can miss notes.
+- Generators sample up to 12 evenly spaced excerpts, each capped at 1,200 characters.
+  Large PDFs can have details omitted; PDF parsing/indexing still runs in memory.
+- Gemini can make mistakes. Verify the cited passages and generated answer keys.
+  Network access, quotas, credentials and model availability affect requests.
+- Each request starts a fresh backend conversation. Chat history is displayed but
+  is not sent back to the agent, so follow-up questions should be self-contained.
+- Fallback routing selects one task and cannot reproduce multi-tool planning.
+- Web search depends on optional DDGS and its external service availability.
+- No permanent chat storage or user accounts. Terminal traces include prompts
+  and note excerpts; this is a local educational app, not a hardened hosted service.
 
----
+## Future ideas
 
-## Tech Stack
+- Semantic embeddings and a vector database for better retrieval.
+- OCR for scanned notes and improved extraction of tables and equations.
+- Multi-PDF libraries with document names in citations.
+- Optional conversational memory and saved revision progress.
+- Spaced repetition, exportable quizzes and model-selection settings.
 
-- **Python 3.10+**
-- **Streamlit** — web UI
-- **Google Gemini** (`google-genai` SDK) — LLM backbone
-- **pypdf** — PDF text extraction
-- **scikit-learn** — TF-IDF similarity for retrieval
-- **python-dotenv** — env variable loading
-- **pytest** — testing
-
----
-
-## Notes for Developers
-
-- Never hardcode API keys — always use `.env` + `python-dotenv`
-- Every module must be importable without crashing if `GEMINI_API_KEY` is missing
-- Use type hints everywhere
-- Write docstrings and heavy inline comments (this is a beginner-friendly project)
-- All function signatures in `CONTRACT.md` are binding — do not change them
+For the presentation, follow [DEMO.md](DEMO.md).

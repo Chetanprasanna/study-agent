@@ -22,6 +22,9 @@ This file is complete (Part 2). Do not modify the public function signature.
 # ── Standard library ──────────────────────────────────────────────────────────
 import os       # os.environ lets us read environment variables
 import time     # time.sleep() pauses execution for the retry backoff
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Iterator
 
 # ── Third-party: python-dotenv ────────────────────────────────────────────────
 # load_dotenv() reads the .env file and injects its contents into os.environ.
@@ -60,6 +63,26 @@ _DEFAULT_MODEL: str = "gemini-3.5-flash-lite"
 # to wait between retries (in seconds). We double the wait each time (backoff).
 _MAX_RETRIES: int = 2
 _INITIAL_BACKOFF_SECONDS: float = 1.0
+
+# A browser-entered key belongs to one request, not the whole Python process.
+# ContextVar keeps concurrent Streamlit sessions isolated without changing APIs.
+_SESSION_API_KEY: ContextVar[str] = ContextVar("gemini_session_api_key", default="")
+
+
+def get_api_key() -> str:
+    """Prefer the configured environment key, then this request's fallback."""
+    return os.environ.get("GEMINI_API_KEY", "").strip() or _SESSION_API_KEY.get()
+
+
+@contextmanager
+def use_api_key(api_key: str) -> Iterator[None]:
+    """Temporarily provide a session key to both routing and text generation."""
+    token = _SESSION_API_KEY.set(api_key.strip())
+    try:
+        yield
+    finally:
+        # Reset even after an exception so a later request cannot reuse this key.
+        _SESSION_API_KEY.reset(token)
 
 
 def ask_llm(prompt: str, system: str | None = None) -> str:
@@ -103,7 +126,7 @@ def ask_llm(prompt: str, system: str | None = None) -> str:
 
     # ── Step 1: Read and validate the API key ─────────────────────────────────
     # We read from os.environ (which includes anything loaded by load_dotenv above).
-    api_key: str | None = os.environ.get("GEMINI_API_KEY")
+    api_key: str = get_api_key()
 
     if not api_key:
         # The key is missing. We raise our custom exception so the caller

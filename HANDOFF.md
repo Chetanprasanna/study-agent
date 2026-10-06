@@ -1,9 +1,10 @@
 # Study Agent — Handoff Log
 
 Each part appends a new section to this file when complete.  
-Read **all previous sections** before starting your part.
+All four parts are now complete. Read the previous sections for implementation
+history and the Part 4 DONE section for the final checklist and run instructions.
 
-**Current status: Parts 1, 2 and 3 are complete. Part 4 (Streamlit UI) is next.**
+**Current status: All four parts are complete, including the Streamlit UI.**
 **Current shared model:** `gemini-3.5-flash-lite`.
 
 ---
@@ -317,12 +318,128 @@ The subsequent user-requested model update changed `agent/llm.py` as recorded be
 - Credentials are stored only in the local, untracked `.env`, with owner-only file permissions. `.gitignore` also excludes `.env.*` variants while keeping the placeholder-only `.env.example` trackable.
 
 
-## Part 4 — Streamlit UI ⏳ Next
+## Part 4 — Original UI Handoff Requirements Completed
 
-Part 3 is complete. `app.py` remains the Part 4 placeholder.
+The UI handoff from Part 3 has been fulfilled:
 
-- Read CONTRACT.md and the Part 3 output shapes above before implementing the UI.
-- Reuse the completed PDF pipeline, `NotesIndex` and `StudyAgent.run`.
-- Render text, quiz/card/topic lists, generation errors, source pages and expandable steps.
-- Keep `.env` credentials local and ignored by Git.
-- Add `tests/test_part4.py` and append a completed Part 4 handoff when finished.
+- [x] Built the UI against CONTRACT.md and the Part 3 output shapes above.
+- [x] Reused the PDF pipeline, `NotesIndex` and `StudyAgent.run`.
+- [x] Rendered text, quiz/card/topic lists, generation errors, sources and steps.
+- [x] Kept `.env` credentials local and ignored by Git.
+- [x] Added `tests/test_part4.py` and the completed Part 4 handoff below.
+
+## Part 4 DONE — Streamlit Study Workspace ✅
+
+**Date:** 2026-10-06
+
+**Files:** `app.py`, `tests/test_part4.py`, `README.md`, `DEMO.md`,
+`HANDOFF.md`, `agent/llm.py`, `agent/agent.py`, `agent/retriever.py`,
+`CONTRACT.md`, `scripts/try_qa.py`.
+
+### Final checklist
+
+- [x] Sidebar PDF uploader and Process notes button reuse `load_pdf` ->
+  `chunk_pages` -> `NotesIndex`; pages, chunks and index live in session state.
+- [x] Environment/.env key takes priority; a password input supplies the fallback
+  through a request-scoped context without mutating process environment variables.
+- [x] All four quick actions and chat call `StudyAgent.run()` only.
+- [x] Chat history and decision badges display the backend task and real tool name.
+- [x] Q&A displays expandable source pages and excerpts; relevance scores are
+  optional because sampled generator sources do not include them.
+- [x] Quizzes use radio choices, Check answers, a persistent score and explanations.
+  Incomplete submissions are rejected. Each reply has independent widget keys.
+- [x] Flashcard expanders reveal answers, topic checkboxes track revision, and
+  summaries provide a `.txt` download.
+- [x] Each reply has an Agent steps expander with the recorded sequence and
+  full input/observation data. Fallback events remain visible.
+- [x] Agent tools lists Search Notes, Calculator, Web Search, Generate Quiz and
+  the other generators, marking tools attempted during the session.
+- [x] Missing uploads/keys, unreadable or corrupt PDFs, API failures and all
+  documented generator error sentinels display friendly messages.
+- [x] Changed/removed PDFs clear stale index, chat and study-widget state.
+  The session-wide tool-usage set intentionally survives document changes.
+- [x] README includes architecture, setup, prompts, routing, limitations and ideas.
+- [x] DEMO.md provides a timed three-minute presentation and recovery lines.
+- [x] Offline pipeline, UI interaction and regression tests pass.
+
+### Integration details
+
+The UI's helpers can be imported without starting Streamlit because `main()` is
+guarded by `if __name__ == "__main__"`. `build_notes()` builds the existing PDF
+pipeline; `run_request()` calls the existing agent under `use_api_key()`.
+`output_error()` checks string, list-of-string and list-of-error-dict sentinels
+before rendering. `score_quiz()` only grades returned answers; it never generates
+content. `tools_used()` reads actual trace events (including fallback
+`answer_question`) instead of assuming a `tool_used` label proves execution.
+
+The badge displays `make_quiz`, matching the backend contract; the sidebar label
+is Generate Quiz. Successful multi-tool replies follow Part 3's existing rule:
+the last non-search tool controls the main output, with earlier results in steps.
+The UI adds a final-answer label when fallback returns without a final-response
+event; it does not invent additional tool calls or expose private reasoning.
+
+Session widget keys start with `reply_` and include the message position. Forms
+batch quiz input. Submitted answers are stored separately from the live choices,
+so the displayed score describes the last checked answers until resubmission.
+Widget reruns and downloads do not issue a fresh agent request.
+
+### Changes and fixes to earlier parts
+
+1. **Part 2/3 credential integration:** `agent/llm.py` adds `get_api_key()` and
+   `use_api_key()` using `ContextVar`; both `ask_llm()` and `StudyAgent.run()` use
+   the shared resolver. Environment configuration remains the default and takes
+   priority. The fallback context resets even on exceptions and is isolated from
+   other threads. Existing public signatures and model selection are unchanged.
+2. **Part 2 repeated-document indexing bug:** for at least 20 highly repetitive
+   chunks, `max_df=0.95` could remove every term and raise during indexing.
+   `NotesIndex` now retries with `max_df=1.0` only for that specific pruning error.
+   Empty-vocabulary errors still reach the UI as unreadable-word validation.
+3. **Part 2 ownership bug:** the index claimed to copy input chunks but retained
+   their dictionary references. It now copies each chunk so caller edits cannot
+   make displayed source text disagree with the fitted vectors.
+4. **Part 2 search-limit bug:** negative `top_k` previously used negative slicing
+   and returned results. Nonpositive limits now return an empty list.
+
+All three retriever fixes have regression coverage in `tests/test_part4.py`.
+The public API contracts and all existing tests remain unchanged.
+
+### Validation and run instructions
+
+From the repository root:
+
+```bash
+source venv/bin/activate
+python -m pip install -r requirements.txt
+# First-time setup only; do not overwrite an existing .env:
+cp .env.example .env
+# Edit .env and set GEMINI_API_KEY, or use the sidebar fallback.
+streamlit run app.py
+
+# In a second terminal with the same virtual environment activated:
+python -m pytest tests/test_part4.py -v
+python -m pytest tests/ -q
+```
+
+Validation on 2026-10-06: **24 Part 4 tests passed; 155 tests passed overall**.
+The run used Python 3.14 and Streamlit 1.65.0. There is one upstream google-genai
+Python 3.14 deprecation warning. Tests generate real PDF bytes and exercise actual
+parsing, indexing and agent execution with mocked `ask_llm`/Gemini responses.
+AppTest covers quiz scoring, chat, quick actions, all output/error shapes, sources,
+steps, caching, API-key fallback, upload replacement/removal and invalid PDFs.
+AppTest substitutes the uploader's byte transport because it has no upload setter.
+Live Gemini calls, live web search and a manual browser/download check were not
+performed. The existing local sample PDF remains untracked; it is not required
+for Part 4 tests and is not included in the suggested commit commands.
+
+Chat history is presentation-only: the existing agent still starts a fresh
+conversation for every request. No persistence, OCR or multi-PDF support was added.
+
+### Final completion-status review — 2026-10-06
+
+- README.md, CONTRACT.md and DEMO.md explicitly mark all four parts complete.
+- The original Part 4 handoff is now a fulfilled checklist, with no pending UI work.
+- The `app.py` module description identifies the completed Part 4 UI.
+- `scripts/try_qa.py` now describes the CLI as a companion to the completed UI;
+  its obsolete claim that the Streamlit UI does not yet exist was removed.
+- Earlier part logs remain implementation history. Contract status wording was
+  updated without changing any public interface or application behavior.

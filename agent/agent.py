@@ -1,7 +1,6 @@
 """Gemini chooses tools in a bounded loop; keywords are a failure fallback."""
 
 import json
-import os
 import re
 from typing import Any
 
@@ -12,7 +11,7 @@ from google.genai import types
 from agent.generators import (
     important_topics, make_flashcards, make_quiz, representative_chunks, summarize,
 )
-from agent.llm import _DEFAULT_MODEL, MissingApiKeyError
+from agent.llm import _DEFAULT_MODEL, MissingApiKeyError, get_api_key
 from agent.qa import answer_question
 from agent.retriever import NotesIndex
 from agent.tools import calculator, search_notes, web_search
@@ -166,7 +165,7 @@ class StudyAgent:
         sources: list[dict] = []
         selected: dict | None = None
         try:
-            api_key = os.environ.get("GEMINI_API_KEY")
+            api_key = get_api_key()
             if not api_key:
                 raise MissingApiKeyError("GEMINI_API_KEY is not set.")
             config = types.GenerateContentConfig(

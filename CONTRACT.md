@@ -1,8 +1,11 @@
 # Study Agent — API Contract
 
+**Project status: Parts 1, 2, 3 and 4 are complete.** The Streamlit UI is
+implemented; this contract remains the reference for maintenance and future changes.
+
 > **This document is LAW.**  
 > Every function signature, return type, and field name listed here is binding.  
-> Parts 2, 3, and 4 must implement exactly these interfaces — no renames, no type changes, no missing fields.  
+> All completed parts and future changes must preserve these interfaces — no renames, no type changes, no missing fields.
 > If you need to add a helper function, that's fine. But the public API below cannot be altered.
 
 ---
